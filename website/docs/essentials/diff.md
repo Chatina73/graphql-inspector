@@ -78,6 +78,12 @@ Compare your local schema against a schema on a master branch (github):
 
 In order to customize the diff's behavior, you're able to use a set of rules:
 
+**dangerousBreaking**
+
+Turns every dangerous change to be a breaking change.
+
+    graphql-inspector diff https://api.com/graphql schema.graphql --rule dangerousBreaking
+
 **suppressRemovalOfDeprecatedField**
 
 Every removal of a deprecated field is considered as a breaking change. With that flag you can turn it into a dangerous change so it won't fail a process or a CI check.
@@ -107,3 +113,14 @@ module.exports = ({changes}) => {
 Now, you can use that module as a rule:
 
     graphql-inspector diff https://api.com/graphql schema.graphql --rule './custom-rule.js'
+
+
+### Passing different headers to multiple remote schemas
+
+If you want to do a diff between multiple remote schemas, each with different set of authentication headers, you can do it with `--left-header` and `--right-header` flags like so:
+
+`graphql-inspector diff http://your-schema-1/graphql http://your-schema-2/graphql --left-header 'Auth: Basic 123' --right-header 'Auth: Basic 345'`
+
+where `--left-header` will get passed to `http://your-schema-1/graphql` and `--right-header` will get passed to `http://your-schema-2/graphql`
+
+**Note:** `--left-header` and `--right-header` overrides the `--header` flags

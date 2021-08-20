@@ -1,16 +1,5 @@
 /// @ts-check
-const Sentry = require('@sentry/node');
-const Tracing = require('@sentry/tracing');
-
 const release = process.env.COMMIT_SHA;
-
-Sentry.init({
-  dsn: process.env.SENTRY_DNS,
-  attachStacktrace: true,
-  release,
-  tracesSampleRate: 1.0,
-});
-
 const {createProbot} = require('probot');
 const inspector = require('@graphql-inspector/github');
 
@@ -19,29 +8,6 @@ module.exports = serverless(inspector.app);
 function serverless(appFn) {
   console.log('Created');
   return async (req, res) => {
-    function onError(error) {
-      Sentry.captureException(error, {
-        level: Sentry.Severity.Critical,
-        extra: {
-          body: req.body,
-          headers: req.headers,
-        },
-      });
-    }
-
-    inspector.setDiagnostics({
-      onError,
-      release,
-    });
-
-    function lowerCaseKeys(obj) {
-      return Object.keys(obj).reduce(
-        (accumulator, key) =>
-          Object.assign(accumulator, {[key.toLocaleLowerCase()]: obj[key]}),
-        {},
-      );
-    }
-
     console.log('Invoked');
 
     // A friendly homepage if there isn't a payload
@@ -52,15 +18,23 @@ function serverless(appFn) {
       return;
     }
 
+    function lowerCaseKeys(obj) {
+      return Object.keys(obj).reduce(
+        (accumulator, key) =>
+          Object.assign(accumulator, {[key.toLocaleLowerCase()]: obj[key]}),
+        {},
+      );
+    }
+
     // Determine incoming webhook event type
     const headers = lowerCaseKeys(req.headers);
     const ev = headers['x-github-event'];
     const id = headers['x-github-delivery'];
     const event = `${ev}${req.body.action ? '.' + req.body.action : ''}`;
 
-    const transaction = Sentry.startTransaction({
-      name: event,
-    });
+    function onError(error) {
+      console.error(error);
+    }
 
     try {
       req.body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
@@ -73,6 +47,12 @@ function serverless(appFn) {
         },
         env: process.env,
       });
+
+      inspector.setDiagnostics(probot, {
+        onError,
+        release,
+      });
+
       await probot.load(appFn);
 
       // Do the thing
@@ -87,7 +67,6 @@ function serverless(appFn) {
             headers['x-hub-signature-256'] || headers['x-hub-signature'],
         });
 
-        transaction.finish();
         res.status(200);
         res.json({
           message: `Received ${ev}.${req.body.action}`,
@@ -95,22 +74,13 @@ function serverless(appFn) {
 
         return;
       } else {
-        transaction.setStatus(Tracing.SpanStatus.UnknownError);
-        transaction.setHttpStatus(500);
-        transaction.finish();
         res.status(500);
         res.send('unknown error');
 
         return;
       }
     } catch (error) {
-      Sentry.captureException(error, {
-        extra: req.body,
-      });
-
-      transaction.setStatus(Tracing.SpanStatus.UnknownError);
-      transaction.setHttpStatus(500);
-      transaction.finish();
+      console.error(error);
       res.status(500);
       res.send('unknown error');
     }

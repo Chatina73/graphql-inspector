@@ -40,15 +40,15 @@
     "prepack": "bob prepack"
   },
   "dependencies": {
-    "@actions/core": "1.2.6",
+    "@actions/core": "1.2.7",
     "@actions/github": "4.0.0",
     "@graphql-inspector/core": "0.0.0-PLACEHOLDER",
     "@graphql-inspector/github": "0.0.0-PLACEHOLDER",
-    "js-yaml": "3.14.1",
-    "probot": "11.1.0",
+    "js-yaml": "4.1.0",
+    "probot": "11.3.0",
     "tslib": "^2.0.0"
   },
   "devDependencies": {
-    "@types/js-yaml": "3.12.6"
+    "@types/js-yaml": "4.0.1"
   }
 }

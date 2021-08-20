@@ -7,7 +7,7 @@ import {getDiagnostics} from './helpers/diagnostics';
 const allowedCheckActions = ['rerequested'];
 
 export default function handleProbot(app: probot.Probot) {
-  const {onError, release} = getDiagnostics();
+  const {onError, release} = getDiagnostics(app);
 
   function wrap<T>(runner: (ctx: T) => Promise<void>) {
     return async (ctx: T) => {
@@ -19,8 +19,6 @@ export default function handleProbot(app: probot.Probot) {
       }
     };
   }
-
-  app.onError(onError);
 
   app.on(
     'check_run',
@@ -109,12 +107,12 @@ export default function handleProbot(app: probot.Probot) {
   app.on(
     'pull_request',
     wrap(async (context) => {
-      const ref = context.payload.pull_request.head.ref;
+      const ref = context.payload.pull_request.head.sha;
       const pullRequestNumber = context.payload.pull_request.number;
       const {owner, repo} = context.repo();
       const action = context.payload.action;
       const pullRequests = [context.payload.pull_request];
-      const before = context.payload.pull_request.base.ref;
+      const before = context.payload.pull_request.base.sha;
       const fullAction = 'pull_request.' + action;
 
       if (

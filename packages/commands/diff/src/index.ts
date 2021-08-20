@@ -1,20 +1,20 @@
 import {
+  CommandFactory,
   createCommand,
   ensureAbsolute,
-  parseGlobalArgs,
   GlobalArgs,
-  CommandFactory,
+  parseGlobalArgs,
 } from '@graphql-inspector/commands';
-import {symbols, Logger, bolderize} from '@graphql-inspector/logger';
 import {
-  diff as diffSchema,
-  CriticalityLevel,
   Change,
+  CompletionArgs,
+  CompletionHandler,
+  CriticalityLevel,
+  diff as diffSchema,
   DiffRule,
   Rule,
-  CompletionHandler,
-  CompletionArgs,
 } from '@graphql-inspector/core';
+import {bolderize, Logger, symbols} from '@graphql-inspector/logger';
 import {existsSync} from 'fs';
 import {GraphQLSchema} from 'graphql';
 
@@ -33,17 +33,15 @@ export function handler(input: {
   const rules = input.rules
     ? input.rules
         .filter(isString)
-        .map(
-          (name): Rule => {
-            const rule = resolveRule(name);
+        .map((name): Rule => {
+          const rule = resolveRule(name);
 
-            if (!rule) {
-              throw new Error(`\Rule '${name}' does not exist!\n`);
-            }
+          if (!rule) {
+            throw new Error(`\Rule '${name}' does not exist!\n`);
+          }
 
-            return rule;
-          },
-        )
+          return rule;
+        })
         .filter((f) => f)
     : [];
 
@@ -127,12 +125,22 @@ export default createCommand<
         const apolloFederation = args.federation || false;
         const aws = args.aws || false;
         const method = args.method?.toUpperCase() || 'POST';
-        const {headers, token} = parseGlobalArgs(args);
+        const {headers, leftHeaders, rightHeaders, token} =
+          parseGlobalArgs(args);
+
+        const oldSchemaHeaders = {
+          ...(headers ?? {}),
+          ...(leftHeaders ?? {}),
+        };
+        const newSchemaHeaders = {
+          ...(headers ?? {}),
+          ...(rightHeaders ?? {}),
+        };
 
         const oldSchema = await loaders.loadSchema(
           oldSchemaPointer,
           {
-            headers,
+            oldSchemaHeaders,
             token,
             method,
           },
@@ -142,7 +150,7 @@ export default createCommand<
         const newSchema = await loaders.loadSchema(
           newSchemaPointer,
           {
-            headers,
+            newSchemaHeaders,
             token,
             method,
           },

@@ -14,6 +14,7 @@ module.exports = {
 
   themeConfig: {
     colorMode: {
+      defaultMode: 'light',
       disableSwitch: true,
     },
     sidebarCollapsible: true,
@@ -149,22 +150,15 @@ module.exports = {
     googleAnalytics: {
       trackingID: 'UA-125180910-2',
     },
-    algolia: {
-      appId: 'ANRJKXZTRW',
-      apiKey: '811d453fc7f80306044dd5cc4b87e064',
-      indexName: 'theguild',
-      algoliaOptions: {},
-    },
   },
   scripts: [
     {
       src: '/js/scroll-to.js',
     },
     {
-      src: 'https://the-guild.dev/static/banner.js',
-      async: true,
-      defer: true,
+      src: '/js/force-dark.js',
     },
+    'https://the-guild.dev/static/crisp.js'
   ],
   stylesheets: [
     'https://fonts.googleapis.com/css?family=Lato:300,400,700,900&display=swap',
@@ -184,7 +178,6 @@ module.exports = {
           customCss: require.resolve('./src/css/custom.css'),
         },
         sitemap: {
-          cacheTime: 600 * 1001, // 600 sec - cache purge period
           changefreq: 'weekly',
           priority: 0.5,
         },

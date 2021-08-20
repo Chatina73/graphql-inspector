@@ -22,6 +22,7 @@ export function handler({
   apollo,
   keepClientFields,
   failOnDeprecated,
+  filter,
 }: {
   schema: GraphQLSchema;
   documents: DocumentSource[];
@@ -30,8 +31,9 @@ export function handler({
   apollo: boolean;
   keepClientFields: boolean;
   maxDepth?: number;
+  filter?: string[];
 }) {
-  const invalidDocuments = validateDocuments(
+  let invalidDocuments = validateDocuments(
     schema,
     documents.map((doc) => new Source(print(doc.document!), doc.location)),
     {
@@ -41,6 +43,12 @@ export function handler({
       keepClientFields,
     },
   );
+
+  if (filter) {
+    invalidDocuments = invalidDocuments.filter((doc) =>
+      filter.some((filepath) => doc.source.name.includes(filepath)),
+    );
+  }
 
   if (!invalidDocuments.length) {
     Logger.success('All documents are valid');
@@ -100,6 +108,7 @@ export default createCommand<
     apollo: boolean;
     keepClientFields: boolean;
     maxDepth?: number;
+    filter?: string[];
   } & GlobalArgs
 >((api) => {
   const {loaders} = api;
@@ -115,7 +124,7 @@ export default createCommand<
           demandOption: true,
         })
         .positional('documents', {
-          describe: 'Point to docuents',
+          describe: 'Point to documents',
           type: 'string',
           demandOption: true,
         })
@@ -145,6 +154,11 @@ export default createCommand<
               'Keeps the fields with @client, but removes @client directive from them',
             type: 'boolean',
             default: false,
+          },
+          filter: {
+            describe: 'Show results only from a list of files (or file)',
+            array: true,
+            type: 'string'
           },
         });
     },
@@ -179,6 +193,7 @@ export default createCommand<
         strictFragments,
         keepClientFields,
         failOnDeprecated,
+        filter: args.filter,
       });
     },
   };

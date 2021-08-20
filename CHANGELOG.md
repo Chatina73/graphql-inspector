@@ -2,7 +2,26 @@
 
 ### vNEXT
 
+### v2.7.0
+
+- **core**: collect arguments in Schema Coverage [#1962](https://github.com/kamilkisiela/graphql-inspector/issues/1962)
+- **ci**, **cli**: allow to filter results by file paths when validating documents
+
+### v2.6.2
+
+- **cli**: Fix missing headers
+
+### v2.6.1
+
+- **cli**: Revert log-symbols to v4 - brings back CJS support
+
+### v2.6.0
+
 - **github**: Allow for error handling
+- **cli**: Adds a relevant file path to an error message [#1887](https://github.com/kamilkisiela/graphql-inspector/pull/1887)
+- **cli**: Adds `--left-header` and `--right-header` [#1899](https://github.com/kamilkisiela/graphql-inspector/pull/1899)
+- **core**: Add rule to make dangerous changes breaking (`dangerousBreaking`) [#1899](https://github.com/kamilkisiela/graphql-inspector/pull/1899)
+- **core**: Make sure default argument values are printable [#1959](https://github.com/kamilkisiela/graphql-inspector/pull/1959)
 
 ### v2.5.0
 
