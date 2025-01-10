@@ -1,13 +1,15 @@
-import env from 'std-env';
+import { Console } from 'node:console';
+import { Transform } from 'node:stream';
 import chalk from 'chalk';
-import symbols from 'log-symbols';
-import figures from 'figures';
+import * as env from 'std-env';
 
-export {chalk, symbols, figures};
+export { default as figures } from 'figures';
+export { default as symbols } from 'log-symbols';
+export { chalk };
 
 export function bolderize(msg: string): string {
-  const findSingleQuotes = /\'([^']+)\'/gim;
-  const findDoubleQuotes = /\"([^"]+)\"/gim;
+  const findSingleQuotes = /'([^']+)'/gim;
+  const findDoubleQuotes = /"([^"]+)"/gim;
 
   return msg
     .replace(findSingleQuotes, (_: string, value: string) => chalk.bold(value))
@@ -16,8 +18,7 @@ export function bolderize(msg: string): string {
 
 let mockedFn: ((msg: string) => void) | null = null;
 
-const canBeFancy = env.tty === true;
-
+const canBeFancy = env.hasTTY === true;
 export interface Logger {
   success(msg: string): void;
   log(msg: string): void;
@@ -32,6 +33,14 @@ export const Logger = {
   },
   log(msg: string) {
     emit('log', msg);
+  },
+  table(
+    input: {
+      method: string;
+      result: string;
+    }[],
+  ) {
+    table(input);
   },
   info(msg: string) {
     emit('info', msg);
@@ -52,10 +61,7 @@ export function unmockLogger() {
   mockedFn = null;
 }
 
-function emit(
-  type: 'success' | 'info' | 'log' | 'error' | 'warn',
-  msg: string,
-) {
+function emit(type: 'success' | 'info' | 'log' | 'error' | 'warn', msg: string) {
   if (mockedFn) {
     return mockedFn(msg);
   }
@@ -75,6 +81,32 @@ function emit(
   } else {
     console.log(msg);
   }
+}
+
+function table(
+  input: {
+    method: string;
+    result: string;
+  }[],
+) {
+  const ts = new Transform({
+    transform(chunk, _enc, cb) {
+      cb(null, chunk);
+    },
+  });
+  const logger = new Console({ stdout: ts });
+  logger.table(input);
+  const table = (ts.read() || '').toString();
+  let result = '';
+  for (const row of table.split(/[\r\n]+/)) {
+    let r = row.replace(/[^┬]*┬/, '┌');
+    r = r.replace(/^├─*┼/, '├');
+    r = r.replace(/│[^│]*/, '');
+    r = r.replace(/^└─*┴/, '└');
+    r = r.replace(/'/g, ' ');
+    result += `${r}\n`;
+  }
+  console.log(result);
 }
 
 function emitSuccess(msg: string) {

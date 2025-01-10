@@ -1,10 +1,14 @@
-import {DepGraph} from 'dependency-graph';
+import { DepGraph } from 'dependency-graph';
 import {
-  DocumentNode,
-  GraphQLError,
   ASTNode,
-  Kind,
+  DocumentNode,
+  FieldNode,
   FragmentDefinitionNode,
+  FragmentSpreadNode,
+  GraphQLError,
+  InlineFragmentNode,
+  Kind,
+  OperationDefinitionNode,
   Source,
 } from 'graphql';
 
@@ -28,7 +32,7 @@ export function validateQueryDepth({
         return fragmentGraph.getNodeData(name);
       },
     });
-  } catch (errorOrNode) {
+  } catch (errorOrNode: any) {
     if (errorOrNode instanceof Error) {
       throw errorOrNode;
     }
@@ -39,7 +43,7 @@ export function validateQueryDepth({
       `Query exceeds maximum depth of ${maxDepth}`,
       node,
       source,
-      node.loc && node.loc.start ? [node.loc.start] : undefined,
+      node.loc?.start ? [node.loc.start] : undefined,
     );
   }
 }
@@ -77,10 +81,10 @@ export function calculateDepth({
 
     case Kind.SELECTION_SET: {
       return Math.max(
-        ...node.selections.map((selection) => {
+        ...node.selections.map(selection => {
           return calculateDepth({
             node: selection,
-            currentDepth: currentDepth,
+            currentDepth,
             maxDepth,
             getFragment,
           });
@@ -90,10 +94,10 @@ export function calculateDepth({
 
     case Kind.DOCUMENT: {
       return Math.max(
-        ...node.definitions.map((def) => {
+        ...node.definitions.map(def => {
           return calculateDepth({
             node: def,
-            currentDepth: currentDepth,
+            currentDepth,
             maxDepth,
             getFragment,
           });
@@ -105,7 +109,7 @@ export function calculateDepth({
     case Kind.INLINE_FRAGMENT:
     case Kind.FRAGMENT_DEFINITION: {
       return Math.max(
-        ...node.selectionSet.selections.map((selection) => {
+        ...node.selectionSet.selections.map(selection => {
           return calculateDepth({
             node: selection,
             currentDepth,
@@ -128,4 +132,30 @@ export function calculateDepth({
       throw new Error(`Couldn't handle ${node.kind}`);
     }
   }
+}
+
+export function countDepth(
+  node:
+    | FieldNode
+    | FragmentDefinitionNode
+    | InlineFragmentNode
+    | OperationDefinitionNode
+    | FragmentSpreadNode,
+  parentDepth: number,
+  getFragmentReference: (name: string) => FragmentDefinitionNode | undefined,
+) {
+  let depth = parentDepth;
+
+  if ('selectionSet' in node && node.selectionSet) {
+    for (const child of node.selectionSet.selections) {
+      depth = Math.max(depth, countDepth(child, parentDepth + 1, getFragmentReference));
+    }
+  }
+  if (node.kind === Kind.FRAGMENT_SPREAD) {
+    const fragment = getFragmentReference(node.name.value);
+    if (fragment) {
+      depth = Math.max(depth, countDepth(fragment, parentDepth + 1, getFragmentReference));
+    }
+  }
+  return depth;
 }

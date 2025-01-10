@@ -1,16 +1,15 @@
-import {GraphQLEnumType} from 'graphql';
-
-import {isNotEqual, isVoid} from '../utils/compare';
+import { GraphQLEnumType, Kind } from 'graphql';
+import { compareLists, isNotEqual, isVoid } from '../utils/compare.js';
+import { directiveUsageAdded, directiveUsageRemoved } from './changes/directive-usage.js';
 import {
-  enumValueRemoved,
   enumValueAdded,
-  enumValueDescriptionChanged,
-  enumValueDeprecationReasonChanged,
   enumValueDeprecationReasonAdded,
+  enumValueDeprecationReasonChanged,
   enumValueDeprecationReasonRemoved,
-} from './changes/enum';
-import {compareLists} from '../utils/compare';
-import {AddChange} from './schema';
+  enumValueDescriptionChanged,
+  enumValueRemoved,
+} from './changes/enum.js';
+import { AddChange } from './schema.js';
 
 export function changesInEnum(
   oldEnum: GraphQLEnumType,
@@ -31,22 +30,44 @@ export function changesInEnum(
       if (isNotEqual(oldValue.description, newValue.description)) {
         addChange(enumValueDescriptionChanged(newEnum, oldValue, newValue));
       }
-  
+
       if (isNotEqual(oldValue.deprecationReason, newValue.deprecationReason)) {
         if (isVoid(oldValue.deprecationReason)) {
-          addChange(
-            enumValueDeprecationReasonAdded(newEnum, oldValue, newValue),
-          );
+          addChange(enumValueDeprecationReasonAdded(newEnum, oldValue, newValue));
         } else if (isVoid(newValue.deprecationReason)) {
-          addChange(
-            enumValueDeprecationReasonRemoved(newEnum, oldValue, newValue),
-          );
+          addChange(enumValueDeprecationReasonRemoved(newEnum, oldValue, newValue));
         } else {
-          addChange(
-            enumValueDeprecationReasonChanged(newEnum, oldValue, newValue),
-          );
+          addChange(enumValueDeprecationReasonChanged(newEnum, oldValue, newValue));
         }
       }
-    }
+
+      compareLists(oldValue.astNode?.directives || [], newValue.astNode?.directives || [], {
+        onAdded(directive) {
+          addChange(
+            directiveUsageAdded(Kind.ENUM_VALUE_DEFINITION, directive, {
+              type: newEnum,
+              value: newValue,
+            }),
+          );
+        },
+        onRemoved(directive) {
+          addChange(
+            directiveUsageRemoved(Kind.ENUM_VALUE_DEFINITION, directive, {
+              type: oldEnum,
+              value: oldValue,
+            }),
+          );
+        },
+      });
+    },
+  });
+
+  compareLists(oldEnum.astNode?.directives || [], newEnum.astNode?.directives || [], {
+    onAdded(directive) {
+      addChange(directiveUsageAdded(Kind.ENUM_TYPE_DEFINITION, directive, newEnum));
+    },
+    onRemoved(directive) {
+      addChange(directiveUsageRemoved(Kind.ENUM_TYPE_DEFINITION, directive, newEnum));
+    },
   });
 }

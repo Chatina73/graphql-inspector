@@ -1,32 +1,28 @@
+import { GraphQLField, GraphQLInterfaceType, GraphQLObjectType, Kind } from 'graphql';
+import { compareLists, isNotEqual, isVoid } from '../utils/compare.js';
+import { isDeprecated } from '../utils/is-deprecated.js';
+import { changesInArgument } from './argument.js';
+import { directiveUsageAdded, directiveUsageRemoved } from './changes/directive-usage.js';
 import {
-  GraphQLField,
-  GraphQLObjectType,
-  GraphQLInterfaceType,
-} from 'graphql';
-
-import {isNotEqual, isVoid} from '../utils/compare';
-import {
-  fieldDescriptionChanged,
-  fieldDescriptionAdded,
-  fieldDescriptionRemoved,
-  fieldDeprecationAdded,
-  fieldDeprecationRemoved,
-  fieldDeprecationReasonChanged,
-  fieldDeprecationReasonAdded,
-  fieldDeprecationReasonRemoved,
-  fieldTypeChanged,
   fieldArgumentAdded,
   fieldArgumentRemoved,
-} from './changes/field';
-import {changesInArgument} from './argument';
-import {compareLists} from '../utils/compare';
-import { AddChange } from './schema';
+  fieldDeprecationAdded,
+  fieldDeprecationReasonAdded,
+  fieldDeprecationReasonChanged,
+  fieldDeprecationReasonRemoved,
+  fieldDeprecationRemoved,
+  fieldDescriptionAdded,
+  fieldDescriptionChanged,
+  fieldDescriptionRemoved,
+  fieldTypeChanged,
+} from './changes/field.js';
+import { AddChange } from './schema.js';
 
 export function changesInField(
   type: GraphQLObjectType | GraphQLInterfaceType,
   oldField: GraphQLField<any, any>,
   newField: GraphQLField<any, any>,
-  addChange: AddChange
+  addChange: AddChange,
 ) {
   if (isNotEqual(oldField.description, newField.description)) {
     if (isVoid(oldField.description)) {
@@ -38,8 +34,8 @@ export function changesInField(
     }
   }
 
-  if (isNotEqual(oldField.isDeprecated, newField.isDeprecated)) {
-    if (newField.isDeprecated) {
+  if (isNotEqual(isDeprecated(oldField), isDeprecated(newField))) {
+    if (isDeprecated(newField)) {
       addChange(fieldDeprecationAdded(type, newField));
     } else {
       addChange(fieldDeprecationRemoved(type, oldField));
@@ -68,7 +64,26 @@ export function changesInField(
       addChange(fieldArgumentRemoved(type, oldField, arg));
     },
     onMutual(arg) {
-      changesInArgument(type, oldField, arg.oldVersion, arg.newVersion, addChange)
-    }
-  })
+      changesInArgument(type, oldField, arg.oldVersion, arg.newVersion, addChange);
+    },
+  });
+
+  compareLists(oldField.astNode?.directives || [], newField.astNode?.directives || [], {
+    onAdded(directive) {
+      addChange(
+        directiveUsageAdded(Kind.FIELD_DEFINITION, directive, {
+          parentType: type,
+          field: newField,
+        }),
+      );
+    },
+    onRemoved(arg) {
+      addChange(
+        directiveUsageRemoved(Kind.FIELD_DEFINITION, arg, {
+          parentType: type,
+          field: oldField,
+        }),
+      );
+    },
+  });
 }

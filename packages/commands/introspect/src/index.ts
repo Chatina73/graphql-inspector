@@ -1,15 +1,20 @@
+import { writeFileSync } from 'fs';
+import { extname, resolve } from 'path';
 import {
+  GraphQLSchema,
+  introspectionFromSchema,
+  lexicographicSortSchema,
+  printSchema,
+} from 'graphql';
+import {
+  CommandFactory,
   createCommand,
   GlobalArgs,
-  CommandFactory,
   parseGlobalArgs,
 } from '@graphql-inspector/commands';
-import {Logger} from '@graphql-inspector/logger';
-import {writeFileSync} from 'fs';
-import {resolve, extname} from 'path';
-import {introspectionFromSchema, lexicographicSortSchema, printSchema, GraphQLSchema} from 'graphql';
+import { Logger } from '@graphql-inspector/logger';
 
-export {CommandFactory};
+export { CommandFactory };
 
 export function handler({
   schema: unsortedSchema,
@@ -30,7 +35,7 @@ export function handler({
     case '.gql':
     case '.gqls':
     case '.graphqls':
-      content = printSchema(schema, {
+      content = (printSchema as any)(schema, {
         commentDescriptions: comments,
       });
       break;
@@ -41,9 +46,7 @@ export function handler({
       throw new Error('Only .graphql, .gql and .json files are supported');
   }
 
-  writeFileSync(output, content!, {
-    encoding: 'utf-8',
-  });
+  writeFileSync(output, content!, 'utf8');
 
   Logger.success(`Saved to ${filepath}`);
 }
@@ -55,8 +58,8 @@ export default createCommand<
     write?: string;
     comments?: boolean;
   } & GlobalArgs
->((api) => {
-  const {loaders} = api;
+>(api => {
+  const { loaders } = api;
 
   return {
     command: 'introspect <schema>',
@@ -82,7 +85,7 @@ export default createCommand<
         .default('w', 'graphql.schema.json');
     },
     async handler(args) {
-      const {headers, token} = parseGlobalArgs(args);
+      const { headers, token } = parseGlobalArgs(args);
       const output = args.write!;
       const comments = args.comments || false;
       const apolloFederation = args.federation || false;
@@ -100,7 +103,7 @@ export default createCommand<
         aws,
       );
 
-      return handler({schema, output, comments});
+      return handler({ schema, output, comments });
     },
   };
 });

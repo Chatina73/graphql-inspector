@@ -1,21 +1,33 @@
 import {
+  DocumentNode,
+  FieldNode,
+  getNamedType,
+  GraphQLEnumType,
+  GraphQLError,
+  GraphQLInputObjectType,
   GraphQLInputType,
-  isWrappingType,
+  GraphQLInterfaceType,
+  GraphQLNamedType,
+  GraphQLObjectType,
+  GraphQLOutputType,
+  GraphQLScalarType,
+  GraphQLSchema,
+  GraphQLUnionType,
+  isInputObjectType,
+  isInterfaceType,
   isListType,
   isNonNullType,
-  GraphQLOutputType,
-  GraphQLNamedType,
-  KindEnum,
+  isObjectType,
+  isScalarType,
+  isUnionType,
+  isWrappingType,
   Kind,
-  GraphQLSchema,
-  GraphQLError,
-  DocumentNode,
+  KindEnum,
   TypeInfo,
   visit,
   visitWithTypeInfo,
-  getNamedType,
-  FieldNode,
 } from 'graphql';
+import { isDeprecated } from './is-deprecated.js';
 
 export function safeChangeForField(
   oldType: GraphQLOutputType,
@@ -33,8 +45,7 @@ export function safeChangeForField(
 
   if (isListType(oldType)) {
     return (
-      (isListType(newType) &&
-        safeChangeForField(oldType.ofType, newType.ofType)) ||
+      (isListType(newType) && safeChangeForField(oldType.ofType, newType.ofType)) ||
       (isNonNullType(newType) && safeChangeForField(oldType, newType.ofType))
     );
   }
@@ -55,7 +66,7 @@ export function safeChangeForInputValue(
   }
 
   if (isNonNullType(oldType)) {
-    const ofType = isNonNullType(newType) ? newType : newType;
+    const ofType = isNonNullType(newType) ? newType.ofType : newType;
 
     return safeChangeForInputValue(oldType.ofType, ofType);
   }
@@ -65,11 +76,11 @@ export function safeChangeForInputValue(
 
 export function getKind(type: GraphQLNamedType): KindEnum {
   const node = type.astNode as any;
-  return (node && node.kind) || '';
+  return node?.kind || '';
 }
 
 export function getTypePrefix(type: GraphQLNamedType): string {
-  const kind: KindEnum = getKind(type);
+  const kind = getKind(type);
 
   const kindsMap: Record<string, string> = {
     [Kind.SCALAR_TYPE_DEFINITION]: 'scalar',
@@ -80,30 +91,26 @@ export function getTypePrefix(type: GraphQLNamedType): string {
     [Kind.INPUT_OBJECT_TYPE_DEFINITION]: 'input',
   };
 
-  return kindsMap[kind];
+  return kindsMap[kind.toString()];
 }
 
 export function isPrimitive(type: GraphQLNamedType | string): boolean {
-  return (
-    ['String', 'Int', 'Float', 'Boolean', 'ID'].indexOf(
-      typeof type === 'string' ? type : type.name,
-    ) !== -1
+  return ['String', 'Int', 'Float', 'Boolean', 'ID'].includes(
+    typeof type === 'string' ? type : type.name,
   );
 }
 
 export function isForIntrospection(type: GraphQLNamedType | string): boolean {
-  return (
-    [
-      '__Schema',
-      '__Type',
-      '__TypeKind',
-      '__Field',
-      '__InputValue',
-      '__EnumValue',
-      '__Directive',
-      '__DirectiveLocation',
-    ].indexOf(typeof type === 'string' ? type : type.name) !== -1
-  );
+  return [
+    '__Schema',
+    '__Type',
+    '__TypeKind',
+    '__Field',
+    '__InputValue',
+    '__EnumValue',
+    '__Directive',
+    '__DirectiveLocation',
+  ].includes(typeof type === 'string' ? type : type.name);
 }
 
 export function findDeprecatedUsages(
@@ -119,31 +126,31 @@ export function findDeprecatedUsages(
       Argument(node) {
         const argument = typeInfo.getArgument();
         if (argument) {
-        const reason = argument.deprecationReason;
-        if (reason) {
-          const fieldDef = typeInfo.getFieldDef();
-          if (fieldDef) {
-            errors.push(
-              new GraphQLError(
-                `The argument '${argument?.name}' of '${fieldDef.name}' is deprecated. ${reason}`,
-                [node],
-              ),
-            );
+          const reason = argument.deprecationReason;
+          if (reason) {
+            const fieldDef = typeInfo.getFieldDef();
+            if (fieldDef) {
+              errors.push(
+                new GraphQLError(
+                  `The argument '${argument?.name}' of '${fieldDef.name}' is deprecated. ${reason}`,
+                  [node],
+                ),
+              );
+            }
           }
-        }
         }
       },
       Field(node) {
         const fieldDef = typeInfo.getFieldDef();
-        if (fieldDef && fieldDef.isDeprecated) {
+        if (fieldDef && isDeprecated(fieldDef)) {
           const parentType = typeInfo.getParentType();
           if (parentType) {
             const reason = fieldDef.deprecationReason;
             errors.push(
               new GraphQLError(
-                `The field '${parentType.name}.${
-                  fieldDef.name
-                }' is deprecated.${reason ? ' ' + reason : ''}`,
+                `The field '${parentType.name}.${fieldDef.name}' is deprecated.${
+                  reason ? ' ' + reason : ''
+                }`,
                 [node],
               ),
             );
@@ -152,7 +159,7 @@ export function findDeprecatedUsages(
       },
       EnumValue(node) {
         const enumVal = typeInfo.getEnumValue();
-        if (enumVal && enumVal.isDeprecated) {
+        if (enumVal && isDeprecated(enumVal)) {
           const type = getNamedType(typeInfo.getInputType()!);
           if (type) {
             const reason = enumVal.deprecationReason;
@@ -177,29 +184,116 @@ export function removeFieldIfDirectives(
   node: FieldNode,
   directiveNames: string[],
 ): FieldNode | null {
-  if (node.directives) {
-    if (
-      node.directives.some((d) => directiveNames.indexOf(d.name.value) !== -1)
-    ) {
-      return null;
-    }
+  if (node.directives?.some(d => directiveNames.includes(d.name.value))) {
+    return null;
   }
 
   return node;
 }
 
-export function removeDirectives(
-  node: FieldNode,
-  directiveNames: string[],
-): FieldNode {
+export function removeDirectives(node: FieldNode, directiveNames: string[]): FieldNode {
   if (node.directives) {
     return {
       ...node,
-      directives: node.directives.filter(
-        (d) => directiveNames.indexOf(d.name.value) === -1,
-      ),
+      directives: node.directives.filter(d => !directiveNames.includes(d.name.value)),
     };
   }
 
   return node;
+}
+
+export function getReachableTypes(schema: GraphQLSchema): Set<string> {
+  const reachableTypes = new Set<string>();
+
+  const collect = (type: GraphQLNamedType): false | void => {
+    const typeName = type.name;
+
+    if (reachableTypes.has(typeName)) {
+      return;
+    }
+
+    reachableTypes.add(typeName);
+
+    if (isScalarType(type)) {
+      return;
+    }
+    if (isInterfaceType(type) || isObjectType(type)) {
+      if (isInterfaceType(type)) {
+        const { objects, interfaces } = schema.getImplementations(type);
+
+        for (const child of objects) {
+          collect(child);
+        }
+
+        for (const child of interfaces) {
+          collect(child);
+        }
+      }
+
+      const fields = type.getFields();
+
+      for (const fieldName in fields) {
+        const field = fields[fieldName];
+
+        collect(resolveOutputType(field.type));
+
+        const args = field.args;
+
+        for (const argName in args) {
+          const arg = args[argName];
+
+          collect(resolveInputType(arg.type));
+        }
+      }
+    } else if (isUnionType(type)) {
+      const types = type.getTypes();
+      for (const child of types) {
+        collect(child);
+      }
+    } else if (isInputObjectType(type)) {
+      const fields = type.getFields();
+      for (const fieldName in fields) {
+        const field = fields[fieldName];
+
+        collect(resolveInputType(field.type));
+      }
+    }
+  };
+
+  for (const type of [
+    schema.getQueryType(),
+    schema.getMutationType(),
+    schema.getSubscriptionType(),
+  ]) {
+    if (type) {
+      collect(type);
+    }
+  }
+
+  return reachableTypes;
+}
+
+function resolveOutputType(
+  output: GraphQLOutputType,
+):
+  | GraphQLScalarType
+  | GraphQLObjectType
+  | GraphQLInterfaceType
+  | GraphQLUnionType
+  | GraphQLEnumType {
+  if (isListType(output) || isNonNullType(output)) {
+    return resolveOutputType(output.ofType);
+  }
+
+  return output;
+}
+
+function resolveInputType(
+  input: GraphQLInputType,
+): GraphQLScalarType | GraphQLEnumType | GraphQLInputObjectType {
+  if (isListType(input) || isNonNullType(input)) {
+    return resolveInputType(input.ofType);
+  }
+
+  return input;
 }

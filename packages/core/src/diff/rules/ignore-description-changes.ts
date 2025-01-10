@@ -1,7 +1,7 @@
-import {ChangeType} from '../changes/change';
-import {Rule} from './types';
+import { ChangeType, TypeOfChangeType } from '../changes/change.js';
+import { Rule } from './types.js';
 
-const descriptionChangeTypes: ChangeType[] = [
+const descriptionChangeTypes: TypeOfChangeType[] = [
   ChangeType.FieldArgumentDescriptionChanged,
   ChangeType.DirectiveDescriptionChanged,
   ChangeType.DirectiveArgumentDescriptionChanged,
@@ -15,8 +15,6 @@ const descriptionChangeTypes: ChangeType[] = [
   ChangeType.TypeDescriptionChanged,
 ];
 
-export const ignoreDescriptionChanges: Rule = ({changes}) => {
-  return changes.filter(
-    (change) => descriptionChangeTypes.indexOf(change.type) === -1,
-  );
+export const ignoreDescriptionChanges: Rule = ({ changes }) => {
+  return changes.filter(change => !descriptionChangeTypes.includes(change.type));
 };

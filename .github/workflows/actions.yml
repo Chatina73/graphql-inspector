@@ -1,10 +1,10 @@
 name: Integration
-on: 	
-  push:	
-    branches-ignore:	
+on:
+  push:
+    branches-ignore:
       - master
-  pull_request:	
-    branches-ignore:	
+  pull_request:
+    branches-ignore:
       - master
 jobs:
   Action:
@@ -12,10 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Make changes to schema
         run: |
+          sed -i '/title: String @deprecated(reason: "No more used")/d' ./example/schemas/schema.graphql
           sed -i 's/createdAt: String/createdAt: String!/g' ./example/schemas/schema.graphql
           sed -i 's/modifiedAt: String/modifiedAt: String!/g' ./example/schemas/schema.graphql
           sed -i 's/post: Post!/post(id: ID): Post!/g' ./example/schemas/schema.graphql
@@ -25,8 +26,12 @@ jobs:
         uses: ./
         id: inspector
         with:
+          experimental_merge: false
           schema: 'master:example/schemas/schema.graphql'
+          rules: |
+            suppressRemovalOfDeprecatedField
+            ./example/rules/custom-rule.js
 
       - name: Validate result
-        if: steps.inspector.outputs.changes != 3
-        run: echo 'Expected 3 changes received ${{ steps.inspector.outputs.changes }}' && exit 1
+        if: steps.inspector.outputs.changes != 4
+        run: echo 'Expected 4 changes received ${{ steps.inspector.outputs.changes }}' && exit 1

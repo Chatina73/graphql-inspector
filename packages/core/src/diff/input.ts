@@ -1,17 +1,16 @@
-import {GraphQLInputObjectType, GraphQLInputField} from 'graphql';
-
-import {diffArrays, isNotEqual, isVoid} from '../utils/compare';
-import {compareLists} from '../utils/compare';
+import { GraphQLInputField, GraphQLInputObjectType, Kind } from 'graphql';
+import { compareLists, diffArrays, isNotEqual, isVoid } from '../utils/compare.js';
+import { directiveUsageAdded, directiveUsageRemoved } from './changes/directive-usage.js';
 import {
   inputFieldAdded,
-  inputFieldRemoved,
-  inputFieldDescriptionChanged,
-  inputFieldDescriptionAdded,
-  inputFieldDescriptionRemoved,
   inputFieldDefaultValueChanged,
+  inputFieldDescriptionAdded,
+  inputFieldDescriptionChanged,
+  inputFieldDescriptionRemoved,
+  inputFieldRemoved,
   inputFieldTypeChanged,
-} from './changes/input';
-import {AddChange} from './schema';
+} from './changes/input.js';
+import { AddChange } from './schema.js';
 
 export function changesInInputObject(
   oldInput: GraphQLInputObjectType,
@@ -30,6 +29,15 @@ export function changesInInputObject(
     },
     onMutual(field) {
       changesInInputField(oldInput, field.oldVersion, field.newVersion, addChange);
+    },
+  });
+
+  compareLists(oldInput.astNode?.directives || [], newInput.astNode?.directives || [], {
+    onAdded(directive) {
+      addChange(directiveUsageAdded(Kind.INPUT_OBJECT_TYPE_DEFINITION, directive, newInput));
+    },
+    onRemoved(directive) {
+      addChange(directiveUsageRemoved(Kind.INPUT_OBJECT_TYPE_DEFINITION, directive, oldInput));
     },
   });
 }
@@ -51,22 +59,37 @@ function changesInInputField(
   }
 
   if (isNotEqual(oldField.defaultValue, newField.defaultValue)) {
-    if (
-      Array.isArray(oldField.defaultValue) &&
-      Array.isArray(newField.defaultValue)
-    ) {
+    if (Array.isArray(oldField.defaultValue) && Array.isArray(newField.defaultValue)) {
       if (diffArrays(oldField.defaultValue, newField.defaultValue).length > 0) {
         addChange(inputFieldDefaultValueChanged(input, oldField, newField));
       }
-    } else if (
-      JSON.stringify(oldField.defaultValue) !==
-      JSON.stringify(newField.defaultValue)
-    ) {
+    } else if (JSON.stringify(oldField.defaultValue) !== JSON.stringify(newField.defaultValue)) {
       addChange(inputFieldDefaultValueChanged(input, oldField, newField));
     }
   }
 
   if (isNotEqual(oldField.type.toString(), newField.type.toString())) {
     addChange(inputFieldTypeChanged(input, oldField, newField));
+  }
+
+  if (oldField.astNode?.directives && newField.astNode?.directives) {
+    compareLists(oldField.astNode.directives || [], newField.astNode.directives || [], {
+      onAdded(directive) {
+        addChange(
+          directiveUsageAdded(Kind.INPUT_VALUE_DEFINITION, directive, {
+            type: input,
+            field: newField,
+          }),
+        );
+      },
+      onRemoved(directive) {
+        addChange(
+          directiveUsageRemoved(Kind.INPUT_VALUE_DEFINITION, directive, {
+            type: input,
+            field: oldField,
+          }),
+        );
+      },
+    });
   }
 }

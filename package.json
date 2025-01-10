@@ -1,6 +1,22 @@
 {
-  "private": true,
+  "name": "graphql-inspector-mono-repository",
   "description": "Tooling for GraphQL. Compare GraphQL Schemas, check documents, find breaking changes, find similar types.",
+  "repository": {
+    "type": "git",
+    "url": "kamilkisiela/graphql-inspector"
+  },
+  "author": {
+    "name": "Kamil Kisiela",
+    "email": "kamil.kisiela@gmail.com",
+    "url": "https://github.com/kamilkisiela"
+  },
+  "license": "MIT",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.12.3"
+  },
   "keywords": [
     "graphql",
     "graphql-inspector",
@@ -9,78 +25,85 @@
     "api",
     "ui"
   ],
-  "sideEffects": false,
-  "author": {
-    "name": "Kamil Kisiela",
-    "email": "kamil.kisiela@gmail.com",
-    "url": "https://github.com/kamilkisiela"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "kamilkisiela/graphql-inspector"
-  },
   "scripts": {
-    "affected:build": "bob run build",
-    "affected:test": "bob run test",
-    "build": "tsc --project tsconfig.json && bob build",
-    "test": "jest",
-    "prebuild": "rimraf \"packages/**/dist/\"",
-    "now-build": "yarn build && (cd website && yarn && yarn build && mv build ../public)",
     "action": "ncc build packages/action/src/action.ts --out action --minify --transpile-only",
+    "build": "bob build",
     "bundle": "webpack",
-    "format": "prettier --config .prettierrc --write \"**/*.{js,json,md,ts,graphql}\"",
-    "prerelease": "yarn action",
-    "release": "node ./scripts/release.js",
+    "check": "bob check",
+    "lint": "eslint --cache --ignore-path .gitignore .",
+    "lint:prettier": "prettier --cache --check .",
+    "prebuild": "rimraf \"packages/**/dist/\"",
+    "precommit": "lint-staged",
+    "prerelease": "pnpm action",
+    "prettier": "pnpm lint:prettier --write",
+    "release": "pnpm build && pnpm changeset publish",
     "release:canary": "npm run release -- canary",
-    "precommit": "lint-staged"
-  },
-  "devDependencies": {
-    "@types/body-parser": "1.19.0",
-    "@types/cors": "2.8.10",
-    "@types/express": "4.17.11",
-    "@types/jest": "26.0.21",
-    "@types/node": "14.14.28",
-    "@types/yargs": "16.0.0",
-    "@zeit/ncc": "0.22.3",
-    "axios": "0.21.1",
-    "bob-the-bundler": "1.1.0",
-    "graphql": "15.5.0",
-    "graphql-config": "3.2.0",
-    "jest": "26.6.3",
-    "jsesc": "3.0.2",
-    "lint-staged": "10.5.4",
-    "lodash": "4.17.20",
-    "nock": "13.0.7",
-    "prettier": "2.2.1",
-    "rimraf": "3.0.2",
-    "smee-client": "1.2.2",
-    "strip-ansi": "6.0.0",
-    "ts-jest": "26.5.1",
-    "typescript": "4.1.5"
+    "test": "vitest"
   },
   "dependencies": {
-    "@sentry/node": "6.2.3",
-    "@sentry/tracing": "6.2.3",
-    "husky": "4.3.8",
-    "immer": "8.0.1",
-    "lerna": "3.22.1",
-    "probot": "11.1.0",
-    "shelljs": "0.8.4"
+    "@sentry/node": "8.25.0",
+    "@sentry/tracing": "7.114.0",
+    "@whatwg-node/fetch": "0.10.3",
+    "husky": "9.0.11",
+    "immer": "10.1.1",
+    "js-yaml": "4.1.0",
+    "probot": "12.3.3",
+    "shelljs": "0.8.5",
+    "yargs": "17.7.2"
   },
-  "workspaces": [
-    "packages/*",
-    "packages/commands/*",
-    "packages/loaders/*",
-    "packages/graphql-cli/*"
-  ],
+  "devDependencies": {
+    "@changesets/changelog-github": "0.5.0",
+    "@changesets/cli": "2.27.7",
+    "@graphql-inspector/audit-command": "workspace:*",
+    "@graphql-inspector/code-loader": "workspace:*",
+    "@graphql-inspector/commands": "workspace:*",
+    "@graphql-inspector/config": "workspace:*",
+    "@graphql-inspector/coverage-command": "workspace:*",
+    "@graphql-inspector/diff-command": "workspace:*",
+    "@graphql-inspector/docs-command": "workspace:*",
+    "@graphql-inspector/git-loader": "workspace:*",
+    "@graphql-inspector/github-loader": "workspace:*",
+    "@graphql-inspector/graphql-loader": "workspace:*",
+    "@graphql-inspector/introspect-command": "workspace:*",
+    "@graphql-inspector/json-loader": "workspace:*",
+    "@graphql-inspector/loaders": "workspace:*",
+    "@graphql-inspector/serve-command": "workspace:*",
+    "@graphql-inspector/similar-command": "workspace:*",
+    "@graphql-inspector/url-loader": "workspace:*",
+    "@graphql-inspector/validate-command": "workspace:*",
+    "@theguild/eslint-config": "0.12.0",
+    "@theguild/prettier-config": "2.0.7",
+    "@types/body-parser": "1.19.5",
+    "@types/cors": "2.8.17",
+    "@types/express": "4.17.21",
+    "@types/node": "20.14.15",
+    "@types/yargs": "17.0.33",
+    "@zeit/ncc": "0.22.3",
+    "bob-the-bundler": "7.0.1",
+    "eslint": "8.57.0",
+    "graphql": "16.9.0",
+    "graphql-config": "5.1.0",
+    "jsesc": "3.0.2",
+    "lint-staged": "15.2.8",
+    "lodash": "4.17.21",
+    "nock": "13.5.4",
+    "prettier": "3.3.3",
+    "rimraf": "5.0.10",
+    "smee-client": "2.0.2",
+    "strip-ansi": "7.1.0",
+    "typescript": "5.5.4",
+    "vitest": "0.34.6"
+  },
+  "sideEffects": false,
   "lint-staged": {
-    "*.{js,json,md,ts,graphql}": [
+    "*.{js,jsx,mjs,json,md,ts,tsx,graphql,gql,yaml,yml}": [
       "prettier --write",
       "git add"
     ]
   },
-  "engines": {
-    "node": ">= 10.x"
+  "pnpm": {
+    "overrides": {
+      "@octokit/types": "5.5.0"
+    }
   }
 }

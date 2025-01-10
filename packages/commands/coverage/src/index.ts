@@ -1,22 +1,22 @@
+import { writeFileSync } from 'fs';
+import { extname } from 'path';
+import { GraphQLSchema, print, Source } from 'graphql';
 import {
-  createCommand,
-  GlobalArgs,
-  ensureAbsolute,
-  parseGlobalArgs,
   CommandFactory,
+  createCommand,
+  ensureAbsolute,
+  GlobalArgs,
+  parseGlobalArgs,
 } from '@graphql-inspector/commands';
-import {Logger, chalk} from '@graphql-inspector/logger';
 import {
   coverage as calculateCoverage,
-  SchemaCoverage,
   getTypePrefix,
+  SchemaCoverage,
 } from '@graphql-inspector/core';
-import {Source as DocumentSource} from '@graphql-tools/utils';
-import {Source, print, GraphQLSchema} from 'graphql';
-import {extname} from 'path';
-import {writeFileSync} from 'fs';
+import { chalk, Logger } from '@graphql-inspector/logger';
+import { Source as DocumentSource } from '@graphql-tools/utils';
 
-export {CommandFactory};
+export { CommandFactory };
 
 export function handler({
   schema,
@@ -32,7 +32,7 @@ export function handler({
   const shouldWrite = typeof writePath !== 'undefined';
   const coverage = calculateCoverage(
     schema,
-    documents.map((doc) => new Source(print(doc.document!), doc.location)),
+    documents.map(doc => new Source(print(doc.document!), doc.location)),
   );
 
   if (silent !== true) {
@@ -54,10 +54,7 @@ export function handler({
     }
 
     if (output) {
-      writeFileSync(absPath, output, {
-        encoding: 'utf-8',
-      });
-
+      writeFileSync(absPath, output, 'utf8');
       Logger.success(`Available at ${absPath}\n`);
     } else {
       throw new Error(`Extension ${ext} is not supported`);
@@ -73,8 +70,8 @@ export default createCommand<
     write?: string;
     silent?: boolean;
   } & GlobalArgs
->((api) => {
-  const {loaders} = api;
+>(api => {
+  const { loaders } = api;
 
   return {
     command: 'coverage <documents> <schema>',
@@ -107,7 +104,7 @@ export default createCommand<
     async handler(args) {
       const writePath = args.write;
       const silent = args.silent;
-      const {headers, token} = parseGlobalArgs(args);
+      const { headers, token } = parseGlobalArgs(args);
       const apolloFederation = args.federation || false;
       const aws = args.aws || false;
       const method = args.method?.toUpperCase() || 'POST';
@@ -124,7 +121,7 @@ export default createCommand<
       );
       const documents = await loaders.loadDocuments(args.documents);
 
-      return handler({schema, documents, silent, writePath});
+      return handler({ schema, documents, silent, writePath });
     },
   };
 });
@@ -137,35 +134,27 @@ function renderCoverage(coverage: SchemaCoverage) {
   Logger.info('Schema coverage based on documents:\n');
 
   for (const typeName in coverage.types) {
-    if (coverage.types.hasOwnProperty(typeName)) {
+    if (Object.prototype.hasOwnProperty.call(coverage.types, typeName)) {
       const typeCoverage = coverage.types[typeName];
 
       Logger.log(
         [
           chalk.grey(getTypePrefix(typeCoverage.type)),
-          chalk.bold(`${typeName}`),
+          chalk.bold(String(typeName)),
           chalk.grey('{'),
         ].join(' '),
       );
 
       for (const childName in typeCoverage.children) {
-        if (typeCoverage.children.hasOwnProperty(childName)) {
+        if (Object.prototype.hasOwnProperty.call(typeCoverage.children, childName)) {
           const childCoverage = typeCoverage.children[childName];
 
           if (childCoverage.hits) {
             Logger.log(
-              [
-                indent(childName, 2),
-                chalk.italic.grey(`x ${childCoverage.hits}`),
-              ].join(' '),
+              [indent(childName, 2), chalk.italic.grey(`x ${childCoverage.hits}`)].join(' '),
             );
           } else {
-            Logger.log(
-              [
-                chalk.redBright(indent(childName, 2)),
-                chalk.italic.grey('x 0'),
-              ].join(' '),
-            );
+            Logger.log([chalk.redBright(indent(childName, 2)), chalk.italic.grey('x 0')].join(' '));
           }
         }
       }
@@ -173,8 +162,64 @@ function renderCoverage(coverage: SchemaCoverage) {
       Logger.log(chalk.grey('}\n'));
     }
   }
-}
 
+  const logStatsResult: { method: string; result: string }[] = [
+    {
+      method: 'Types covered',
+      result: `${
+        coverage.stats.numTypes > 0
+          ? ((coverage.stats.numTypesCovered / coverage.stats.numTypes) * 100).toFixed(1)
+          : 'N/A'
+      }%`,
+    },
+    {
+      method: 'Types covered fully',
+      result: `${
+        coverage.stats.numTypes > 0
+          ? ((coverage.stats.numTypesCoveredFully / coverage.stats.numTypes) * 100).toFixed(1)
+          : 'N/A'
+      }%`,
+    },
+    {
+      method: 'Fields covered',
+      result: `${
+        coverage.stats.numFields > 0
+          ? ((coverage.stats.numFiledsCovered / coverage.stats.numFields) * 100).toFixed(1)
+          : 'N/A'
+      }%`,
+    },
+    {
+      method: 'Total Queries',
+      result: String(coverage.stats.numQueries > 0 ? coverage.stats.numQueries : '0'),
+    },
+    {
+      method: 'Covered Queries',
+      result: String(coverage.stats.numCoveredQueries > 0 ? coverage.stats.numCoveredQueries : '0'),
+    },
+    {
+      method: 'Total Mutations',
+      result: String(coverage.stats.numMutations > 0 ? coverage.stats.numMutations : '0'),
+    },
+    {
+      method: 'Covered Mutations',
+      result: String(
+        coverage.stats.numCoveredMutations > 0 ? coverage.stats.numCoveredMutations : '0',
+      ),
+    },
+    {
+      method: 'Total Subscriptions',
+      result: String(coverage.stats.numSubscriptions > 0 ? coverage.stats.numSubscriptions : '0'),
+    },
+    {
+      method: 'Covered Subscriptions',
+      result: String(
+        coverage.stats.numCoveredSubscriptions > 0 ? coverage.stats.numCoveredSubscriptions : '0',
+      ),
+    },
+  ];
+  Logger.table(logStatsResult);
+  Logger.log(``);
+}
 function indent(line: string, space: number): string {
   return line.padStart(line.length + space, ' ');
 }

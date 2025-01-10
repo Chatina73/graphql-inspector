@@ -1,6 +1,12 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   test:
@@ -8,53 +14,70 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node_version: [12, 14]
+        node_version: [18, 20]
     env:
       CI: true
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
 
       - name: Use Node.js ${{ matrix.node_version }}
         uses: actions/setup-node@master
         with:
           node-version: ${{ matrix.node_version }}
 
-      - name: Bob, check the repo
-        id: bob
-        uses: 'kamilkisiela/bob@master'
-      - name: Bob, check Test
-        id: bob-test
-        uses: 'kamilkisiela/bob@master'
-        with:
-          command: test
-      - name: Bob, check Build
-        id: bob-build
-        uses: 'kamilkisiela/bob@master'
-        with:
-          command: build
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.0.0
 
-      - name: Get yarn cache
-        if: steps.bob.outputs.dirty == 'true'
-        id: yarn-cache
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-      - name: Cache Yarn
-        if: steps.bob.outputs.dirty == 'true'
-        uses: actions/cache@v2
+      - name: Get pnpm cache - Set output
+        id: pnpm-cache
+        run: echo "{dir}={pnpm cache dir}" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm
+        uses: actions/cache@v3
         with:
-          path: ${{ steps.yarn-cache.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock') }}
+          path: ${ env.dir }
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-pnpm-
 
       - name: Install
-        if: steps.bob.outputs.dirty == 'true'
-        run: yarn
+        run: pnpm i --no-frozen-lockfile
 
       - name: Build
-        if: steps.bob-build.outputs.dirty == 'true'
-        run: yarn affected:build
+        run: pnpm build
 
       - name: Test
-        if: steps.bob-test.outputs.dirty == 'true'
-        run: yarn affected:test
+        run: pnpm test
+
+      - name: Lint ESLint
+        run: pnpm lint
+
+      - name: Lint Prettier
+        run: pnpm lint:prettier
+
+      - name: Integration tests
+        run: |
+          chmod +x ./packages/cli/dist/cjs/index.js
+
+          echo 2001
+          node ./packages/cli/dist/cjs/index.js validate './integration_tests/2001/operations/**/*.graphql' './integration_tests/2001/schema.graphql'
+
+          echo 1991
+          node ./packages/cli/dist/cjs/index.js validate './integration_tests/1991/two-operations.js' './integration_tests/1991/schema.graphql'
+
+          echo 1985
+          node ./packages/cli/dist/cjs/index.js introspect ./integration_tests/1985/schema.js || echo 'TODO'
+
+          echo 2108
+          node ./packages/cli/dist/cjs/index.js introspect './integration_tests/2108/**/!(excluded)/*.graphql' --write ./2108.graphql
+            if grep -ic "bar" ./2108.graphql
+            then echo "Broken" && exit 1
+            else echo "Works"
+            fi
+
+          echo 2027
+          node ./packages/cli/dist/cjs/index.js diff ./integration_tests/2027/schema-before.graphql ./integration_tests/2027/schema-after.graphql --rule considerUsage --onUsage ./integration_tests/2027/unused-hotels.js
+
+          echo 2088
+          node ./packages/cli/dist/cjs/index.js diff ./integration_tests/2088/old.graphql ./integration_tests/2088/new.graphql --rule suppressRemovalOfDeprecatedField

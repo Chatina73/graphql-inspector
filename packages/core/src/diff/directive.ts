@@ -1,22 +1,16 @@
+import { GraphQLArgument, GraphQLDirective } from 'graphql';
+import { compareLists, diffArrays, isNotEqual } from '../utils/compare.js';
 import {
-  GraphQLDirective,
-  DirectiveLocationEnum,
-  GraphQLArgument,
-} from 'graphql';
-
-import {isNotEqual} from '../utils/compare';
-import {
+  directiveArgumentAdded,
+  directiveArgumentDefaultValueChanged,
+  directiveArgumentDescriptionChanged,
+  directiveArgumentRemoved,
+  directiveArgumentTypeChanged,
   directiveDescriptionChanged,
   directiveLocationAdded,
   directiveLocationRemoved,
-  directiveArgumentAdded,
-  directiveArgumentRemoved,
-  directiveArgumentDescriptionChanged,
-  directiveArgumentDefaultValueChanged,
-  directiveArgumentTypeChanged,
-} from './changes/directive';
-import {diffArrays, compareLists} from '../utils/compare';
-import {AddChange} from './schema';
+} from './changes/directive.js';
+import { AddChange } from './schema.js';
 
 export function changesInDirective(
   oldDirective: GraphQLDirective,
@@ -33,18 +27,12 @@ export function changesInDirective(
   };
 
   // locations added
-  locations.added.forEach((location) =>
-    addChange(
-      directiveLocationAdded(newDirective, location as DirectiveLocationEnum),
-    ),
-  );
+  for (const location of locations.added)
+    addChange(directiveLocationAdded(newDirective, location as any));
 
   // locations removed
-  locations.removed.forEach((location) =>
-    addChange(
-      directiveLocationRemoved(oldDirective, location as DirectiveLocationEnum),
-    ),
-  );
+  for (const location of locations.removed)
+    addChange(directiveLocationRemoved(oldDirective, location as any));
 
   compareLists(oldDirective.args, newDirective.args, {
     onAdded(arg) {

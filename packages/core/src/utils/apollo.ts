@@ -1,10 +1,9 @@
-import {DocumentNode, visit, parse, GraphQLSchema, extendSchema} from 'graphql';
-
-import {removeFieldIfDirectives, removeDirectives} from './graphql';
+import { DocumentNode, extendSchema, GraphQLSchema, parse, visit } from 'graphql';
+import { removeDirectives, removeFieldIfDirectives } from './graphql.js';
 
 export function transformDocumentWithApollo(
   doc: DocumentNode,
-  {keepClientFields}: {keepClientFields: boolean},
+  { keepClientFields }: { keepClientFields: boolean },
 ): DocumentNode {
   return visit(doc, {
     Field(node) {
@@ -15,9 +14,7 @@ export function transformDocumentWithApollo(
   });
 }
 
-export function transformSchemaWithApollo(
-  schema: GraphQLSchema,
-): GraphQLSchema {
+export function transformSchemaWithApollo(schema: GraphQLSchema): GraphQLSchema {
   return extendSchema(
     schema,
     parse(/* GraphQL */ `

@@ -1,17 +1,16 @@
+import { createServer } from 'http';
+import { createYoga } from 'graphql-yoga';
+import open from 'open';
 import {
+  CommandFactory,
   createCommand,
   GlobalArgs,
   parseGlobalArgs,
-  CommandFactory,
 } from '@graphql-inspector/commands';
-import {Logger} from '@graphql-inspector/logger';
-import open from 'open';
-import express from 'express';
-import {graphqlHTTP} from 'express-graphql';
-import cors from 'cors';
-import {fake} from './fake';
+import { Logger } from '@graphql-inspector/logger';
+import { fake } from './fake.js';
 
-export {CommandFactory};
+export { CommandFactory };
 
 export default createCommand<
   {},
@@ -19,8 +18,8 @@ export default createCommand<
     schema: string;
     port: number;
   } & GlobalArgs
->((api) => {
-  const {loaders} = api;
+>(api => {
+  const { loaders } = api;
 
   return {
     command: 'serve <schema>',
@@ -42,7 +41,7 @@ export default createCommand<
         });
     },
     async handler(args) {
-      const {headers, token} = parseGlobalArgs(args);
+      const { headers, token } = parseGlobalArgs(args);
       const apolloFederation = args.federation || false;
       const aws = args.aws || false;
       const method = args.method?.toUpperCase() || 'POST';
@@ -61,35 +60,30 @@ export default createCommand<
       const port = args.port;
 
       try {
-        const app = express();
-
         fake(schema);
 
-        app.get('/test', (_, res) => {
-          res.send('yes').status(200);
+        const yoga = createYoga({
+          schema,
+          logging: false,
         });
 
-        app.use(
-          cors(),
-          graphqlHTTP({
-            schema,
-            graphiql: true,
-          }),
-        );
+        const server = createServer(yoga);
 
-        const server = app.listen(port);
-        const url = `http://localhost:${port}`;
+        await new Promise<void>(resolve => server.listen(port, () => resolve()));
+
+        const url = `http://localhost:${port}/graphql`;
         Logger.success(`GraphQL API:    ${url}`);
         await open(url);
 
         const shutdown = () => {
-          server.close();
-          process.exit(0);
+          server.close(() => {
+            process.exit(0);
+          });
         };
 
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
-      } catch (e) {
+      } catch (e: any) {
         Logger.error(e.message || e);
       }
     },

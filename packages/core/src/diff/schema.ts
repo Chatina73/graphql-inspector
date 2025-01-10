@@ -1,45 +1,44 @@
 import {
-  GraphQLSchema,
   GraphQLNamedType,
   GraphQLObjectType,
+  GraphQLSchema,
   isEnumType,
-  isUnionType,
   isInputObjectType,
-  isObjectType,
   isInterfaceType,
+  isObjectType,
   isScalarType,
+  isUnionType,
+  Kind,
 } from 'graphql';
-
-import {compareLists, isNotEqual, isVoid} from '../utils/compare';
-import {isPrimitive} from '../utils/graphql';
-import {Change} from './changes/change';
+import { compareLists, isNotEqual, isVoid } from '../utils/compare.js';
+import { isPrimitive } from '../utils/graphql.js';
+import { Change } from './changes/change.js';
+import { directiveUsageAdded, directiveUsageRemoved } from './changes/directive-usage.js';
+import { directiveAdded, directiveRemoved } from './changes/directive.js';
 import {
-  schemaQueryTypeChanged,
   schemaMutationTypeChanged,
+  schemaQueryTypeChanged,
   schemaSubscriptionTypeChanged,
-} from './changes/schema';
+} from './changes/schema.js';
 import {
-  typeRemoved,
   typeAdded,
-  typeKindChanged,
-  typeDescriptionChanged,
   typeDescriptionAdded,
+  typeDescriptionChanged,
   typeDescriptionRemoved,
-} from './changes/type';
-import {directiveRemoved, directiveAdded} from './changes/directive';
-import {changesInEnum} from './enum';
-import {changesInUnion} from './union';
-import {changesInInputObject} from './input';
-import {changesInObject} from './object';
-import {changesInInterface} from './interface';
-import {changesInDirective} from './directive';
+  typeKindChanged,
+  typeRemoved,
+} from './changes/type.js';
+import { changesInDirective } from './directive.js';
+import { changesInEnum } from './enum.js';
+import { changesInInputObject } from './input.js';
+import { changesInInterface } from './interface.js';
+import { changesInObject } from './object.js';
+import { changesInScalar } from './scalar.js';
+import { changesInUnion } from './union.js';
 
 export type AddChange = (change: Change) => void;
 
-export function diffSchema(
-  oldSchema: GraphQLSchema,
-  newSchema: GraphQLSchema,
-): Change[] {
+export function diffSchema(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Change[] {
   const changes: Change[] = [];
 
   function addChange(change: Change) {
@@ -49,8 +48,8 @@ export function diffSchema(
   changesInSchema(oldSchema, newSchema, addChange);
 
   compareLists(
-    Object.values(oldSchema.getTypeMap()).filter((t) => !isPrimitive(t)),
-    Object.values(newSchema.getTypeMap()).filter((t) => !isPrimitive(t)),
+    Object.values(oldSchema.getTypeMap()).filter(t => !isPrimitive(t)),
+    Object.values(newSchema.getTypeMap()).filter(t => !isPrimitive(t)),
     {
       onAdded(type) {
         addChange(typeAdded(type));
@@ -76,25 +75,39 @@ export function diffSchema(
     },
   });
 
+  compareLists(oldSchema.astNode?.directives || [], newSchema.astNode?.directives || [], {
+    onAdded(directive) {
+      addChange(directiveUsageAdded(Kind.SCHEMA_DEFINITION, directive, newSchema));
+    },
+    onRemoved(directive) {
+      addChange(directiveUsageRemoved(Kind.SCHEMA_DEFINITION, directive, oldSchema));
+    },
+  });
+
   return changes;
 }
 
-function changesInSchema(
-  oldSchema: GraphQLSchema,
-  newSchema: GraphQLSchema,
-  addChange: AddChange,
-) {
+function changesInSchema(oldSchema: GraphQLSchema, newSchema: GraphQLSchema, addChange: AddChange) {
+  const defaultNames = {
+    query: 'Query',
+    mutation: 'Mutation',
+    subscription: 'Subscription',
+  };
   const oldRoot = {
-    query: (oldSchema.getQueryType() || ({} as GraphQLObjectType)).name,
-    mutation: (oldSchema.getMutationType() || ({} as GraphQLObjectType)).name,
-    subscription: (oldSchema.getSubscriptionType() || ({} as GraphQLObjectType))
-      .name,
+    query: (oldSchema.getQueryType() || ({} as GraphQLObjectType)).name ?? defaultNames.query,
+    mutation:
+      (oldSchema.getMutationType() || ({} as GraphQLObjectType)).name ?? defaultNames.mutation,
+    subscription:
+      (oldSchema.getSubscriptionType() || ({} as GraphQLObjectType)).name ??
+      defaultNames.subscription,
   };
   const newRoot = {
-    query: (newSchema.getQueryType() || ({} as GraphQLObjectType)).name,
-    mutation: (newSchema.getMutationType() || ({} as GraphQLObjectType)).name,
-    subscription: (newSchema.getSubscriptionType() || ({} as GraphQLObjectType))
-      .name,
+    query: (newSchema.getQueryType() || ({} as GraphQLObjectType)).name ?? defaultNames.query,
+    mutation:
+      (newSchema.getMutationType() || ({} as GraphQLObjectType)).name ?? defaultNames.mutation,
+    subscription:
+      (newSchema.getSubscriptionType() || ({} as GraphQLObjectType)).name ??
+      defaultNames.subscription,
   };
 
   if (isNotEqual(oldRoot.query, newRoot.query)) {
@@ -110,11 +123,7 @@ function changesInSchema(
   }
 }
 
-function changesInType(
-  oldType: GraphQLNamedType,
-  newType: GraphQLNamedType,
-  addChange: AddChange,
-) {
+function changesInType(oldType: GraphQLNamedType, newType: GraphQLNamedType, addChange: AddChange) {
   if (isEnumType(oldType) && isEnumType(newType)) {
     changesInEnum(oldType, newType, addChange);
   } else if (isUnionType(oldType) && isUnionType(newType)) {
@@ -126,7 +135,7 @@ function changesInType(
   } else if (isInterfaceType(oldType) && isInterfaceType(newType)) {
     changesInInterface(oldType, newType, addChange);
   } else if (isScalarType(oldType) && isScalarType(newType)) {
-    // what to do with scalar types?
+    changesInScalar(oldType, newType, addChange);
   } else {
     addChange(typeKindChanged(oldType, newType));
   }

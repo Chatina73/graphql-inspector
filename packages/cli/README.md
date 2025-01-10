@@ -2,8 +2,9 @@
 
 [![npm version](https://badge.fury.io/js/%40graphql-inspector%2Fcli.svg)](https://npmjs.com/package/@graphql-inspector/cli)
 
-**GraphQL Inspector** ouputs a list of changes between two GraphQL schemas. Every change is precisely explained and marked as breaking, non-breaking or dangerous.
-It helps you validate documents and fragments against a schema and even find similar or duplicated types.
+**GraphQL Inspector** outputs a list of changes between two GraphQL schemas. Every change is
+precisely explained and marked as breaking, non-breaking or dangerous. It helps you validate
+documents and fragments against a schema and even find similar or duplicated types.
 
 ![Example](./demo.gif)
 
@@ -20,16 +21,17 @@ Major features:
 - **GitHub Bot**
 - **GitHub Actions**
 
-GraphQL Inspector has a **CLI** and also a **programatic API**, so you can use it however you want to and even build tools on top of it.
+GraphQL Inspector has a **CLI** and also a **programmatic API**, so you can use it however you want
+to and even build tools on top of it.
 
 ## Installation
 
 ```bash
 # CLI
-yarn add @graphql-inspector/cli
+pnpm add @graphql-inspector/cli
 
-# Core API for programatic usage
-yarn add @graphql-inspector/core
+# Core API for programmatic usage
+pnpm add @graphql-inspector/core
 ```
 
 ### Compare schemas
@@ -43,9 +45,9 @@ Compares schemas and finds breaking or dangerous changes.
 **API:**
 
 ```typescript
-import {diff, Change} from '@graphql-inspector/core';
+import { Change, diff } from '@graphql-inspector/core'
 
-const changes: Change[] = diff(schemaA, schemaB);
+const changes: Change[] = diff(schemaA, schemaB)
 ```
 
 ![Diff](https://raw.githubusercontent.com/kamilkisiela/graphql-inspector/master/assets/diff.jpg)
@@ -61,16 +63,17 @@ Finds similar / duplicated types.
 **API:**
 
 ```typescript
-import {similar, SimilarMap} from '@graphql-inspector/core';
+import { similar, SimilarMap } from '@graphql-inspector/core'
 
-const similar: SimilarMap = similar(schema, typename, threshold);
+const similar: SimilarMap = similar(schema, typename, threshold)
 ```
 
 ![Similar](https://raw.githubusercontent.com/kamilkisiela/graphql-inspector/master/assets/similar.jpg)
 
 ### Check coverage
 
-Schema coverage based on documents. Find out how many times types and fields are used in your application.
+Schema coverage based on documents. Find out how many times types and fields are used in your
+application.
 
 **CLI:**
 
@@ -79,9 +82,9 @@ Schema coverage based on documents. Find out how many times types and fields are
 **API:**
 
 ```typescript
-import {coverage, SchemaCoverage} from '@graphql-inspector/core';
+import { coverage, SchemaCoverage } from '@graphql-inspector/core'
 
-const schemaCoverage: SchemaCoverage = coverage(schema, documents);
+const schemaCoverage: SchemaCoverage = coverage(schema, documents)
 ```
 
 ![Coverage](https://raw.githubusercontent.com/kamilkisiela/graphql-inspector/master/assets/coverage.jpg)
@@ -97,12 +100,48 @@ Validates documents against a schema and looks for deprecated usage.
 **API:**
 
 ```typescript
-import {validate, InvalidDocument} from '@graphql-inspector/core';
+import { InvalidDocument, validate } from '@graphql-inspector/core'
 
-const invalid: InvalidDocument[] = validate(documentsGlob, schema);
+const invalid: InvalidDocument[] = validate(documentsGlob, schema)
 ```
 
 ![Validate](https://raw.githubusercontent.com/kamilkisiela/graphql-inspector/master/assets/validate.jpg)
+
+### Audit documents
+
+Audit your documents for useful metrics such as query depth, directive count and alias count.
+
+**CLI:**
+
+    $ graphql-inspector audit DOCUMENTS
+
+**API:**
+
+Not available
+
+```
+$ pnpm graphql-inspector audit "packages/**/*.graphql|packages/**/*.ts(x)"
+
+Maximum depth is 16
+Maximum alias amount is 3
+Maximum directive amount is 6
+```
+
+```
+$ pnpm graphql-inspector audit "packages/**/*.graphql|packages/**/*.ts(x)" --detail
+
+┌────────────────┬───────┬─────────┬────────────┐
+│ Operation Name │ Depth │ Aliases │ Directives │
+├────────────────┼───────┼─────────┼────────────┤
+│ getFoo         │ 1     │ 2       │ 6          │
+├────────────────┼───────┼─────────┼────────────┤
+│ getBar         │ 16    │ 3       │ 0          │
+└────────────────┴───────┴─────────┴────────────┘
+
+Maximum depth is 16
+Maximum alias amount is 3
+Maximum directive amount is 6
+```
 
 ### Serve faked GraphQL API
 
@@ -134,8 +173,7 @@ Have a per-repository, self-hosted GraphQL Inspector service or deploy it with D
 
 ```bash
 # install
-yarn global add @graphql-inspector/actions
-
+pnpm add --global @graphql-inspector/actions
 # use
 
 $ graphql-inspector-github
@@ -250,7 +288,8 @@ Example:
 
     graphql-inspector validate ./src/**/*.{js,jsx,tsx,graphql} https://localhost:3000/graphql
 
-Supports TypeScript, JavaScript and GraphQL Files (_Extensions: ts,tsx,js,jsx,graphql,gql,graphqls_).
+Supports TypeScript, JavaScript and GraphQL Files (_Extensions:
+ts,tsx,js,jsx,graphql,gql,graphqls_).
 
 ### Help
 
